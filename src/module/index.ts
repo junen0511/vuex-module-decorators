@@ -9,20 +9,33 @@ import {
   staticStateGenerator
 } from './staticGenerators'
 
-function registerDynamicModule<S>(module: Mod<S, any>, modOpt: DynamicModuleOptions) {
+export function registerDynamicModule<S>(dynamicModule: Mod<S, any>, modOpt: DynamicModuleOptions) {
   if (!modOpt.name) {
     throw new Error('Name of module not provided in decorator options')
   }
-
   if (!modOpt.store) {
     throw new Error('Store not provided in decorator options when using dynamic option')
   }
 
-  modOpt.store.registerModule(
-    modOpt.name, // TODO: Handle nested modules too in future
-    module,
-    { preserveState: modOpt.preserveState || false }
-  )
+  const store = modOpt.store as Store<any> & {
+    hasModule: (name: string) => boolean
+    hotUpdate: (options: { modules: any }) => void
+  }
+
+  if (import.meta.hot) {
+    try {
+      if (store.hasModule(modOpt.name)) {
+        store.hotUpdate({
+          modules: {
+            [modOpt.name]: dynamicModule
+          }
+        })
+        return
+      }
+    } catch (e) {}
+  }
+
+  store.registerModule(modOpt.name, dynamicModule, { preserveState: modOpt.preserveState || false })
 }
 
 function addGettersToModule<S>(
