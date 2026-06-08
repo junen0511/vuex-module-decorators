@@ -17,25 +17,26 @@ export function registerDynamicModule<S>(dynamicModule: Mod<S, any>, modOpt: Dyn
     throw new Error('Store not provided in decorator options when using dynamic option')
   }
 
-  const store = modOpt.store as Store<any> & {
-    hasModule: (name: string) => boolean
-    hotUpdate: (options: { modules: any }) => void
-  }
+  const store = modOpt.store as any
 
   if (import.meta.hot) {
-    try {
-      if (store.hasModule(modOpt.name)) {
-        store.hotUpdate({
-          modules: {
-            [modOpt.name]: dynamicModule
-          }
-        })
-        return
-      }
-    } catch (e) {}
+    if (store.hasModule(modOpt.name)) {
+      store.hotUpdate({
+        modules: {
+          [modOpt.name]: dynamicModule
+        }
+      })
+      return
+    }
+    store.registerModule(modOpt.name, dynamicModule, {
+      preserveState: modOpt.preserveState || false
+    })
+    return
   }
 
-  store.registerModule(modOpt.name, dynamicModule, { preserveState: modOpt.preserveState || false })
+  store.registerModule(modOpt.name, dynamicModule, {
+    preserveState: modOpt.preserveState || false
+  })
 }
 
 function addGettersToModule<S>(
